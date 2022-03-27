@@ -68,7 +68,8 @@ class dsMidiPlayer extends HTMLElement {
 
   initPlayer() {
     MIDI.loadPlugin({
-      soundfontUrl: './soundfont/',
+      soundfontUrl: 'https://gleitz.github.io/midi-js-soundfonts/FluidR3_GM/',
+      instrument: 'acoustic_guitar_steel',
       onerror: (e) => {
         console.error(e);
       },
@@ -81,6 +82,12 @@ class dsMidiPlayer extends HTMLElement {
 
   setPlayer() {
     this.player = new MIDI.Player();
+
+    MIDI.programChange(0, MIDI.GM.byName['acoustic_guitar_steel'].program);
+
+    this.player.addListener(function (data) {
+      console.log(data);
+    });
   }
 
   setBpmAndLoadFile(bpm) {
