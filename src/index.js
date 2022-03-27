@@ -1,6 +1,7 @@
 // noinspection JSUnusedGlobalSymbols,JSUnresolvedFunction
 
 import * as midicube from 'midicube';
+
 window.MIDI = midicube;
 
 const DEFAULT_BPM = 90;
@@ -82,12 +83,7 @@ class dsMidiPlayer extends HTMLElement {
 
   setPlayer() {
     this.player = new MIDI.Player();
-
     MIDI.programChange(0, MIDI.GM.byName['acoustic_guitar_steel'].program);
-
-    this.player.addListener(function (data) {
-      console.log(data);
-    });
   }
 
   setBpmAndLoadFile(bpm) {
@@ -98,11 +94,60 @@ class dsMidiPlayer extends HTMLElement {
 
     this.player.loadFile(
       midiFileSrc,
-      () => {}, // onsuccess
+      () => {
+        this.removeDuplicateNoteEvents(this.player);
+      }, // onsuccess
       () => {}, // onprogress
       (err) => {
         console.error(err);
       } // onerror
+    );
+  }
+
+  removeDuplicateNoteEvents(player) {
+    let prevNoteEvent;
+
+    player.replayer.temporal = player.replayer.temporal.reduce((acc, curr) => {
+      const [midiEvent] = curr;
+
+      // If this midiEvent is not a note event, allow it and move on
+      if (!this.isNoteEvent(midiEvent)) {
+        acc.push(curr);
+        return acc;
+      }
+
+      // If it is a note event
+      const noteEvent = midiEvent.event;
+
+      // ... only allow it if it is not a duplicate
+      if (!this.isDuplicateNoteEvent(prevNoteEvent, noteEvent)) {
+        acc.push(curr);
+      }
+
+      // Cache the current noteEvent for comparison in the next loop
+      prevNoteEvent = noteEvent;
+
+      return acc;
+    }, []);
+  }
+
+  isNoteEvent(midiEvent) {
+    return (
+      midiEvent.event.subtype !== 'noteOn' ||
+      midiEvent.event.subtype !== 'noteOff'
+    );
+  }
+
+  isDuplicateNoteEvent(prevNote, currNote) {
+    if (!prevNote) return false;
+
+    return (
+      prevNote.channel === currNote.channel &&
+      prevNote.noteNumber === currNote.noteNumber &&
+      prevNote.subtype === currNote.subtype &&
+      prevNote.type === currNote.type &&
+      prevNote.velocity === currNote.velocity &&
+      currNote.deltaTime === 0
     );
   }
 
